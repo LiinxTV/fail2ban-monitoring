@@ -45,6 +45,10 @@ Then finally install it:
 
     sudo sh install.sh
     
+Edit `/etc/fail2ban-monitoring/config.xml` for changing MySQL login:
+
+    sudo nano /etc/fail2ban-monitoring/config.xml
+    
 NOTE: if you want to import your actual fail2ban list to the database, just run `sudo sh import.sh`
 
 **Grafana part 1 - data source:**
