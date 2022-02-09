@@ -17,14 +17,14 @@ apt install xmlstarlet -y
 
 if [ ! -d /etc/fail2ban/scripts ]; then
     mkdir /etc/fail2ban/scripts
-    mv ban_mysql.sh /etc/fail2ban/scripts/ban_mysql.sh
-    mv unban_mysql.sh /etc/fail2ban/scripts/unban_mysql.sh
+    cp ban_mysql.sh /etc/fail2ban/scripts/ban_mysql.sh
+    cp unban_mysql.sh /etc/fail2ban/scripts/unban_mysql.sh
 fi
 
 if [ ! -d /etc/fail2ban-monitoring ]; then
     mkdir /etc/fail2ban-monitoring
 fi
 
-mv config.xml /etc/fail2ban-monitoring/config.xml
+cp config.xml /etc/fail2ban-monitoring/config.xml
 
-mv grafana.conf /etc/fail2ban/action.d/grafana.conf
+cp grafana.conf /etc/fail2ban/action.d/grafana.conf
