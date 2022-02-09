@@ -2,4 +2,5 @@
     <username>root</username>
     <password>P@ssw0rd</password>
     <database>grafana</database>
+    <script>/usr/bin/fail2ban-minitoring.sh</script>
 </configuration>
