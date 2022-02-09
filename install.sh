@@ -1,8 +1,7 @@
 #!bin/bash
 
-user=$( xmlstarlet sel -t -v '/config/user' "/etc/fail2ban-monitoring/config.xml" )
-password=$( xmlstarlet sel -t -v '/config/password' "/etc/fail2ban-monitoring/config.xml" )
-database=$( xmlstarlet sel -t -v '/config/database' "/etc/fail2ban-monitoring/config.xml" )
+user="grafana"
+password="P@ssw0rd"
 
 request() {
 	mysql -u$user -p$password -e "$1"
