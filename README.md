@@ -10,8 +10,7 @@
 Installation:
 -------------
 
-**It is possible that Fail2Ban is already packaged for your distribution.  In
-this case, you should use that instead.**
+**I can't believe that you don't have fail2ban installed on your server. If you don't have it, please go to (https://doc.ubuntu-fr.org/fail2ban)**
 
 Required:
 - [Python2 >= 2.6 or Python >= 3.2](https://www.python.org) or [PyPy](https://pypy.org)
