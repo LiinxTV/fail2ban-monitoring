@@ -1,0 +1,5 @@
+<configuration>
+    <username>root</username>
+    <password>P@ssw0rd</password>
+    <database>grafana</database>
+</configuration>
