@@ -39,7 +39,7 @@ do
             request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
             ;;
     esac
-    sleep 0.5s
+    sleep 1s
 done
 
 rm -rf banned.txt
