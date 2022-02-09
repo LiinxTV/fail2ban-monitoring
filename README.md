@@ -50,6 +50,7 @@ NOTE: if you want to import your actual fail2ban list to the database, just run 
 **Grafana part 1 - data source:**
 
 First, add a data source:
+
 ![](https://i.ibb.co/TkQ70m2/1.png)
 
 ![](https://i.ibb.co/fQ5SM2v/2.png)
