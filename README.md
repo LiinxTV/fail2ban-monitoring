@@ -44,6 +44,8 @@ Change MySQL credentials:
 Then finally install it:
 
     sudo sh install.sh
+    
+NOTE: if you want to import your actual fail2ban list to the database, just run `sudo sh import.sh`
 
 **Grafana part 1 - data source:**
 
