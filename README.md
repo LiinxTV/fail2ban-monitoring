@@ -32,24 +32,16 @@ Optional:
     sudo git clone https://github.com/LiinxTV/fail2ban-monitoring.git
     cd fail2ban-monitoring
 
-Warning, before installing, make sure to configure as well the install.sh script:
+Warning, before installing, make sure to have the alias in your `~/.bashrc`:
 
-    nano install.sh
-
-Change MySQL credentials:
-
-    user="grafana"
-    password="P@ssw0rd"
+    echo "alias f2bm='sh /usr/bin/fail2ban-monitoring.sh'" >> ~/.bashrc
+    source ~/.bashrc
 
 Then finally install it:
 
-    sudo sh install.sh
+    f2bm install
     
-Edit `/etc/fail2ban-monitoring/config.xml` for changing MySQL login:
-
-    sudo nano /etc/fail2ban-monitoring/config.xml
-    
-NOTE: if you want to import your actual fail2ban list to the database, just run `sudo sh import.sh`
+NOTE: if you want to import your actual fail2ban list to the database, just run `f2bm import`
 
 **Grafana part 1 - data source:**
 
