@@ -44,8 +44,29 @@ log() {
     echo "${RESET}[${1}${RESET}] ${2}" ${RESET}
 }
 
+directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi }
+
+file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi }
+
+mysql_password() {
+    password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${1}: ")
+    confirm_password=$(/lib/cryptsetup/askpass "[MySQL] Confirm password for ${1}: ")
+
+    if [ ! $password = $confirm_password ]; then
+        echo " "
+        log "${RED}ERROR" "The passwords are not matching !"
+        echo " "
+        mysql_password ${1}
+    fi
+    until MYSQL_PWD=${password} mysql -u${1} -e ";" > /dev/null; do
+        password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
+    done
+    log "${LIGHTGREEN}OK" "Connection successfully established !"
+    echo "    <password>$password</password>" >> /etc/fail2ban-monitoring/config.xml
+}
+
 install() {
-    if [ -e /etc/fail2ban-monitoring/config.xml ]; then
+    if file_exist "/etc/fail2ban-monitoring/config.xml"; then
         log "${RED}ERROR" "Failed to continue installation, config file is already present !"
         exit
     fi
@@ -56,31 +77,31 @@ install() {
         sudo apt update && sudo apt upgrade -y
         sudo apt install xmlstarlet -y
     fi
-    if [ ! -d /etc/fail2ban-monitoring ]; then
+    if ! directory_exist "/etc/fail2ban-monitoring"; then
         mkdir /etc/fail2ban-monitoring
         log "${YELLOW}INSTALL" "Created folder: ${LIGHTPURPLE}/etc/fail2ban-monitoring"
     fi
-    if [ ! -e /etc/fail2ban-monitoring/config.xml ]; then
-        touch /etc/fail2ban-monitoring/config.xml
-        log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban-monitoring/config.xml"
-    fi
-    if [ ! -e /etc/fail2ban/action.d/grafana.conf ]; then
+    if ! file_exist "/etc/fail2ban/action.d/grafana.conf"; then
         touch /etc/fail2ban/action.d/grafana.conf
         log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban/action.d/grafana.conf"
+    fi
+    if ! file_exist "/etc/fail2ban-monitoring/config.xml"; then
+        touch /etc/fail2ban-monitoring/config.xml
+        log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban-monitoring/config.xml"
+        echo "<configuration>" >> /etc/fail2ban-monitoring/config.xml
+        read -p "[SETUP] MySQL User: " setup_mysql_user
+        echo "    <username>$setup_mysql_user</username>" >> /etc/fail2ban-monitoring/config.xml
+        mysql_password ${setup_mysql_user}
+        read -p "[SETUP] MySQL Database: " setup_mysql_database
+        echo "    <database>$setup_mysql_database</database>" >> /etc/fail2ban-monitoring/config.xml
+        echo "</configuration>" >> /etc/fail2ban-monitoring/config.xml
     fi
     echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
     echo "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
     echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
     echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
     echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
-    read -p "[SETUP] MySQL User: " setup_mysql_user
-    read -p "[SETUP] MySQL Password: " setup_mysql_password
-    read -p "[SETUP] MySQL Database: " setup_mysql_database
-    echo "<configuration>" >> /etc/fail2ban-monitoring/config.xml
-    echo "    <username>$setup_mysql_user</username>" >> /etc/fail2ban-monitoring/config.xml
-    echo "    <password>$setup_mysql_password</password>" >> /etc/fail2ban-monitoring/config.xml
-    echo "    <database>$setup_mysql_database</database>" >> /etc/fail2ban-monitoring/config.xml
-    echo "</configuration>" >> /etc/fail2ban-monitoring/config.xml
+
     request "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));"
     request "CREATE DATABASE IF NOT EXISTS $setup_mysql_database;"
     request "DROP TABLE IF EXISTS data;"
@@ -89,7 +110,7 @@ install() {
 }
 
 uninstall() {
-        if [ -e /etc/fail2ban-monitoring/config.xml ]; then
+        if file_exist "/etc/fail2ban-monitoring/config.xml"; then
         read -p "Do you want to delete database data? [Y/n]" choice
         if [ "$choice" = "y" ] || [ "$choice" = "" ]; then
             request "DELETE FROM data;"
@@ -98,11 +119,11 @@ uninstall() {
             log "${YELLOW}UNINSTALL" "Skipping deleting entries from database."
         fi
     fi
-    if [ -d /etc/fail2ban-monitoring ]; then
+    if  directory_exist "/etc/fail2ban-monitoring"; then
         rm -rf /etc/fail2ban-monitoring
         log "${YELLOW}UNINSTALL" "Deleted folder: ${LIGHTPURPLE}/etc/fail2ban-monitoring/*"
     fi
-    if [ -e /etc/fail2ban/action.d/grafana.conf ]; then
+    if file_exist "/etc/fail2ban/action.d/grafana.conf"; then
         rm -rf /etc/fail2ban/action.d/grafana.conf
         log "${YELLOW}UNINSTALL" "Deleted file: ${LIGHTPURPLE}/etc/fail2ban/action.d/grafana.conf"
     fi
@@ -120,7 +141,7 @@ reset() {
         iptables -t mangle -F
         iptables -F
         iptables -X
-        if [ -e /etc/fail2ban-monitoring/config.xml ]; then
+        if file_exist "/etc/fail2ban-monitoring/config.xml"; then
             request "DELETE FROM data;"
         fi
         log "${LIGHTGREEN}OK" "Everything has been reset."
@@ -130,11 +151,11 @@ reset() {
 }
 
 import() {
-    if [ ! -e /etc/fail2ban-monitoring/config.xml ]; then
+    if ! file_exist "/etc/fail2ban-monitoring/config.xml"; then
         log "${RED}ERROR" "Failed to import data, use ${LIGHTPURPLE}f2bm install${RESET} first."
         exit
     fi
-    if [ ! -e banned.txt ]; then
+    if ! file_exist "banned.txt"; then
         touch banned.txt
     fi
     iptables -L -n | awk '$1=="REJECT" && $4!="0.0.0.0/0" {print $4}' > banned.txt
@@ -142,7 +163,6 @@ import() {
     do
         endpoint=$(curl -s "http://ip-api.com/json/${ip}")
         data=$(request "SELECT * FROM data")
-
         case ${data} in
             *${ip}*) ;;
             *)  country=$(echo "${endpoint}" | jq -r ".country")
@@ -151,7 +171,6 @@ import() {
                 lat=$(echo "${endpoint}" | jq -r ".lat")
                 lng=$(echo "${endpoint}" | jq -r ".lon")
                 isp=$(echo "${endpoint}" | jq -r ".isp")
-
                 request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
                 ;;
         esac
@@ -162,11 +181,11 @@ import() {
 
 debug() {
     error=0
-    if [ ! -d /etc/fail2ban-monitoring ]; then
+    if ! directory_exist "/etc/fail2ban-monitoring"; then
         log "${RED}DEBUG" "The folder ${LIGHTPURPLE}/etc/fail2ban-monitoring${RESET} is missing !"
         error=1
     fi
-    if [ ! -e /etc/fail2ban/action.d/grafana.conf ]; then
+    if ! file_exist "/etc/fail2ban/action.d/grafana.conf"; then
         log "${RED}DEBUG" "The file ${LIGHTPURPLE}/etc/fail2ban/action.d/grafana.conf${RESET} is missing !"
         error=1
     fi
