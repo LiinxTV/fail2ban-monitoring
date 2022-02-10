@@ -4,7 +4,7 @@ request() {
     username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml")
     password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml")
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
-	mysql -u${username} -p${password} --silent --database=${database} -e "$1"
+	MYSQL_PWD=${password} mysql -u${username} --database=${database} -e "$1" > /dev/null
 }
 
 RESET='\033[0m'
@@ -69,8 +69,8 @@ install() {
         log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban/action.d/grafana.conf"
     fi
     echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionban = sh /usr/bin/fail2ban-monitoring.sh db_ban <ip>" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh db_unban <ip>" >> /etc/fail2ban/action.d/grafana.conf
+    echo "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
+    echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
     echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
     echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
     read -p "[SETUP] MySQL User: " setup_mysql_user
@@ -112,7 +112,7 @@ uninstall() {
 reset() {
     read -p "Do you want to continue? [Y/n]" choice
     if [ "$choice" = "y" ] || [ "$choice" = "" ]; then
-        fail2ban-client unban --all
+        fail2ban-client unban --all > /dev/null
         iptables -P INPUT ACCEPT
         iptables -P FORWARD ACCEPT
         iptables -P OUTPUT ACCEPT
@@ -181,9 +181,8 @@ debug() {
 
 ban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
-        for i in 1 2 3 4; do
-            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ];
-            then
+         for i in 1 2 3 4; do
+            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ]; then
                 log "${RED}ERROR" "The adress${RED} "${1}" ${RESET}is not a valid ip adress !"
                 exit
             fi
@@ -192,32 +191,34 @@ ban() {
         log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
         exit
     fi
-    fail2ban-client -q set sshd banip ${1}
-    log "${LIGHTGREEN}OK" "The adress${RED} "${1}" ${RESET}has been banned !"
+
+    if [ $# -eq 1 ]; then
+        fail2ban-client -q set sshd banip ${1} > /dev/null
+        log "${LIGHTGREEN}OK" "The adress${RED} "${1}" ${RESET}has been banned !"
+        exit
+    fi
+
+    if [ $# -eq 2 ] && [ "$2" = "--db" ]; then
+        endpoint=$(curl -s "http://ip-api.com/json/${1}")
+        data=$(request "SELECT * FROM data")
+        case ${data} in
+            *${1}*) ;;
+            *)  country=$(echo "${endpoint}" | jq -r ".country")
+                city=$(echo "${endpoint}" | jq -r ".city")
+                zip=$(echo "${endpoint}" | jq -r ".zip")
+                lat=$(echo "${endpoint}" | jq -r ".lat")
+                lng=$(echo "${endpoint}" | jq -r ".lon")
+                isp=$(echo "${endpoint}" | jq -r ".isp")
+                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
+                ;;
+        esac
+    fi
 }
 
 unban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
-        for i in 1 2 3 4; do
-            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ];
-            then
-                log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
-                exit
-            fi
-        done
-    else
-        log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
-        exit
-    fi
-    fail2ban-client -q set sshd unbanip "$1"
-    log "${LIGHTGREEN}OK" "The adress${RED} "$1" ${RESET}has been unbanned !"
-}
-
-db_ban() {
-    if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
-        for i in 1 2 3 4; do
-            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ];
-            then
+         for i in 1 2 3 4; do
+            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ]; then
                 log "${RED}ERROR" "The adress${RED} "${1}" ${RESET}is not a valid ip adress !"
                 exit
             fi
@@ -226,37 +227,15 @@ db_ban() {
         log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
         exit
     fi
-    endpoint=$(curl -s "http://ip-api.com/json/${1}")
-    data=$(request "SELECT * FROM data")
-    case ${data} in
-        *${1}*) ;;
-        *)  country=$(echo "${endpoint}" | jq -r ".country")
-            city=$(echo "${endpoint}" | jq -r ".city")
-            zip=$(echo "${endpoint}" | jq -r ".zip")
-            lat=$(echo "${endpoint}" | jq -r ".lat")
-            lng=$(echo "${endpoint}" | jq -r ".lon")
-            isp=$(echo "${endpoint}" | jq -r ".isp")
-            request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
-            ;;
-    esac
-    log "${LIGHTGREEN}OK" "The adress${RED} "${1}" ${RESET}has been banned !"
-}
-
-db_unban() {
-    if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
-        for i in 1 2 3 4; do
-            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ];
-            then
-                log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
-                exit
-            fi
-        done
-    else
-        log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
+    if [ $# -eq 1 ]; then
+        fail2ban-client -q set sshd unbanip "$1" > /dev/null
+        log "${LIGHTGREEN}OK" "The adress${RED} "$1" ${RESET}has been unbanned !"
         exit
     fi
-    request "DELETE FROM data WHERE ip='${1}';"
-    log "${LIGHTGREEN}OK" "The adress${RED} "$1" ${RESET}has been unbanned !"
+    if [ $# -eq 2 ] && [ "$2" = "--db" ]; then
+        request "DELETE FROM data WHERE ip='${1}';"
+        log "${LIGHTGREEN}OK" "The adress${RED} "$1" ${RESET}has been unbanned !"
+    fi
 }
 
 update_db_user() {
@@ -329,6 +308,16 @@ fi
 
 if [ $# -eq 2 ] && [ "$1" = "db_unban" ]; then
     db_unban "$2"
+    exit
+fi
+
+if [ $# -eq 3 ] && [ "$1" = "ban" ] && [ "$3" = "--db" ]; then
+    ban "$2" "$3"
+    exit
+fi
+
+if [ $# -eq 3 ] && [ "$1" = "unban" ] && [ "$3" = "--db" ]; then
+    unban "$2" "$3"
     exit
 fi
 
