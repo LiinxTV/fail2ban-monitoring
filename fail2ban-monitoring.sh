@@ -4,7 +4,7 @@ request() {
     username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml")
     password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml")
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
-	mysql -u${username} -p${password} --database=${database} -e "$1"
+	mysql -u${username} -p${password} --silent --database=${database} -e "$1"
 }
 
 RESET='\033[0m'
@@ -82,9 +82,9 @@ install() {
     echo "    <database>$setup_mysql_database</database>" >> /etc/fail2ban-monitoring/config.xml
     echo "</configuration>" >> /etc/fail2ban-monitoring/config.xml
     request "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));"
-    request "CREATE DATABASE IF NOT EXISTS grafana;"
+    request "CREATE DATABASE IF NOT EXISTS $setup_mysql_database;"
     request "DROP TABLE IF EXISTS data;"
-    request "USE grafana; CREATE TABLE IF NOT EXISTS data (ip varchar(15) NOT NULL,country varchar(48) NOT NULL,city varchar(48) NOT NULL,zip varchar(12) NOT NULL,lat decimal(10,8) NOT NULL,lng decimal(11,8) NOT NULL,isp varchar(92) NOT NULL,time date NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+    request "USE $setup_mysql_database; CREATE TABLE IF NOT EXISTS data (ip varchar(15) NOT NULL,country varchar(48) NOT NULL,city varchar(48) NOT NULL,zip varchar(12) NOT NULL,lat decimal(10,8) NOT NULL,lng decimal(11,8) NOT NULL,isp varchar(92) NOT NULL,time date NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
     log "${LIGHTGREEN}OK" "Configuration file successfully created !"
 }
 
