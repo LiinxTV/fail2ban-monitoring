@@ -138,9 +138,6 @@ import() {
         touch banned.txt
     fi
     iptables -L -n | awk '$1=="REJECT" && $4!="0.0.0.0/0" {print $4}' > banned.txt
-
-    now=$(date +'%d_%m_%Y-%T')
-
     cat banned.txt | while read ip
     do
         endpoint=$(curl -s "http://ip-api.com/json/${ip}")
@@ -183,18 +180,18 @@ ban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
          for i in 1 2 3 4; do
             if [ $(echo "$1" | cut -d. -f$i) -gt 255 ]; then
-                log "${RED}ERROR" "The adress${RED} "${1}" ${RESET}is not a valid ip adress !"
+                log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
                 exit
             fi
         done
     else
-        log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
+        log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
         exit
     fi
 
     if [ $# -eq 1 ]; then
         fail2ban-client -q set sshd banip ${1} > /dev/null
-        log "${LIGHTGREEN}OK" "The adress${RED} "${1}" ${RESET}has been banned !"
+        log "${LIGHTGREEN}OK" "The adress${RED} ${1} ${RESET}has been banned !"
         exit
     fi
 
@@ -219,22 +216,22 @@ unban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
          for i in 1 2 3 4; do
             if [ $(echo "$1" | cut -d. -f$i) -gt 255 ]; then
-                log "${RED}ERROR" "The adress${RED} "${1}" ${RESET}is not a valid ip adress !"
+                log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
                 exit
             fi
         done
     else
-        log "${RED}ERROR" "The adress${RED} "$1" ${RESET}is not a valid ip adress !"
+        log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
         exit
     fi
     if [ $# -eq 1 ]; then
-        fail2ban-client -q set sshd unbanip "$1" > /dev/null
-        log "${LIGHTGREEN}OK" "The adress${RED} "$1" ${RESET}has been unbanned !"
+        fail2ban-client -q set sshd unbanip ${1} > /dev/null
+        log "${LIGHTGREEN}OK" "The adress${RED} ${1} ${RESET}has been unbanned !"
         exit
     fi
     if [ $# -eq 2 ] && [ "$2" = "--db" ]; then
         request "DELETE FROM data WHERE ip='${1}';"
-        log "${LIGHTGREEN}OK" "The adress${RED} "$1" ${RESET}has been unbanned !"
+        log "${LIGHTGREEN}OK" "The adress${RED} ${1} ${RESET}has been unbanned !"
     fi
 }
 
