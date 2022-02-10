@@ -31,6 +31,7 @@ Optional:
 
     sudo git clone https://github.com/LiinxTV/fail2ban-monitoring.git
     cd fail2ban-monitoring
+    mv fail2ban-monitoring.sh /usr/bin/fail2ban-monitoring.sh
 
 Warning, before installing, make sure to have the alias in your `~/.bashrc`:
 
