@@ -1,4 +1,4 @@
-#!!bin/bash
+#!/bin/bash
 
 request() {
     username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml")
@@ -158,7 +158,7 @@ import() {
     if ! file_exist "banned.txt"; then
         touch banned.txt
     fi
-    iptables -L -n | awk '$1=="REJECT" && $4!="0.0.0.0/0" {print $4}' > banned.txt
+    sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips" > banned.txt
     cat banned.txt | while read ip
     do
         endpoint=$(curl -s "http://ip-api.com/json/${ip}")
@@ -171,6 +171,7 @@ import() {
                 lat=$(echo "${endpoint}" | jq -r ".lat")
                 lng=$(echo "${endpoint}" | jq -r ".lon")
                 isp=$(echo "${endpoint}" | jq -r ".isp")
+                log "${LIGHTGREEN}+" "Added ${YELLOW}${ip}${RESET} to the database !"
                 request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
                 ;;
         esac
