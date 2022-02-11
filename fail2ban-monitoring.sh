@@ -4,7 +4,7 @@ request() {
     username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml")
     password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml")
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
-	MYSQL_PWD=${password} mysql -u${username} --database=${database} -e "$1" > /dev/null
+	MYSQL_PWD=${password} mysql -u${username} --database=${database} -e "$1"
 }
 
 RESET='\033[0m'
@@ -48,18 +48,18 @@ directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi }
 
 file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi }
 
+tries=0
 mysql_password() {
     password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${1}: ")
-    confirm_password=$(/lib/cryptsetup/askpass "[MySQL] Confirm password for ${1}: ")
 
-    if [ ! $password = $confirm_password ]; then
-        echo " "
-        log "${RED}ERROR" "The passwords are not matching !"
-        echo " "
-        mysql_password ${1}
-    fi
     until MYSQL_PWD=${password} mysql -u${1} -e ";" > /dev/null; do
         password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
+        tries=$(expr $tries + 1)
+        if [ "$tries" -eq "3" ]; then
+            log "${RED}ERROR" "Too many authentification failures !"
+            tries=$(expr $tries - $tries)
+            mysql_password
+        fi
     done
     log "${LIGHTGREEN}OK" "Connection successfully established !"
     echo "    <password>$password</password>" >> /etc/fail2ban-monitoring/config.xml
@@ -162,7 +162,7 @@ import() {
     cat banned.txt | while read ip
     do
         endpoint=$(curl -s "http://ip-api.com/json/${ip}")
-        data=$(request "SELECT * FROM data")
+        data=$(request "SELECT ip FROM data;")
         case ${data} in
             *${ip}*) ;;
             *)  country=$(echo "${endpoint}" | jq -r ".country")
@@ -217,7 +217,7 @@ ban() {
 
     if [ $# -eq 2 ] && [ "$2" = "--db" ]; then
         endpoint=$(curl -s "http://ip-api.com/json/${1}")
-        data=$(request "SELECT * FROM data")
+        data=$(request "SELECT ip FROM `data`;")
         case ${data} in
             *${1}*) ;;
             *)  country=$(echo "${endpoint}" | jq -r ".country")
