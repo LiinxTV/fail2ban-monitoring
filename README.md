@@ -48,7 +48,8 @@ If you want to see if f2bm is correctly installed, just run:
 
     f2bm debug
 
-**Grafana part 1 - data source:**
+Grafana setup:
+-------------
 
 First, add a data source:
 
@@ -74,10 +75,10 @@ Select `grafana.json` and finish the import process.
 
 Configuration:
 --------------
-• You must define action event to your JAIL. Exemple configuration of SSHD jail:
+• You must define action event to your JAILs. Exemple configuration of SSHD jail:
 
     [sshd]
     port    = ssh
     logpath = %(sshd_log)s
     backend = %(sshd_backend)s
-    action = grafana
+    **action = grafana**
