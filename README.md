@@ -81,4 +81,4 @@ Configuration:
     port    = ssh
     logpath = %(sshd_log)s
     backend = %(sshd_backend)s
-    action = grafana**
+    action = grafana
