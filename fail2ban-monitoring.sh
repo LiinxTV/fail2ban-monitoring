@@ -77,10 +77,21 @@ install() {
     fi
     if [ $(dpkg-query -W -f='${Status}' mysql-server 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
         log "${RED}ERROR" "MySQL not found, please install it !"
+        exit
     fi
     if [ $(dpkg-query -W -f='${Status}' xmlstarlet 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
-        sudo apt update && sudo apt upgrade -y
-        sudo apt install xmlstarlet -y
+        log "${RED}ERROR" "xmlstarlet not installed, Installing... !"
+        sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
+        sudo apt -qq install xmlstarlet -y >/dev/null 2>&1
+    else
+        log "${LIGHTGREEN}OK" "xmlstarlet package is already installed"
+    fi
+    if [ $(dpkg-query -W -f='${Status}' sqlite3 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+        log "${RED}ERROR" "sqlite3 not installed, Installing... !"
+        sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
+        sudo apt -qq install sqlite3 -y >/dev/null 2>&1
+    else
+        log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
     fi
     if ! directory_exist "/etc/fail2ban-monitoring"; then
         mkdir /etc/fail2ban-monitoring
