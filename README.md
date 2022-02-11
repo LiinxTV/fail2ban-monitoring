@@ -44,6 +44,10 @@ Then finally install it:
     
 NOTE: if you want to import your actual fail2ban list to the database, just run `f2bm import`
 
+If you want to see if f2bm is correctly installed, just run:
+
+    f2bm debug
+
 **Grafana part 1 - data source:**
 
 First, add a data source:
