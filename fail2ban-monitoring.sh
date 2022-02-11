@@ -48,21 +48,26 @@ directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi }
 
 file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi }
 
-tries=0
-mysql_password() {
-    password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${1}: ")
-
-    until MYSQL_PWD=${password} mysql -u${1} -e ";" > /dev/null; do
+mysql_setup() {
+    read -p "[SETUP] MySQL User: " user
+    password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${user}: ")
+    tries=0
+    until MYSQL_PWD=${password} mysql -u${user} -e ";" > /dev/null; do
         password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
         tries=$(expr $tries + 1)
         if [ "$tries" -eq "3" ]; then
             log "${RED}ERROR" "Too many authentification failures !"
             tries=$(expr $tries - $tries)
-            mysql_password
+            mysql_setup
         fi
     done
     log "${LIGHTGREEN}OK" "Connection successfully established !"
-    echo "    <password>$password</password>" >> /etc/fail2ban-monitoring/config.xml
+    read -p "[SETUP] MySQL Database: " database
+    echo "<configuration>" >> /etc/fail2ban-monitoring/config.xml
+    echo "    <username>${user}</username>" >> /etc/fail2ban-monitoring/config.xml
+    echo "    <password>${password}</password>" >> /etc/fail2ban-monitoring/config.xml
+    echo "    <database>${database}</database>" >> /etc/fail2ban-monitoring/config.xml
+    echo "</configuration>" >> /etc/fail2ban-monitoring/config.xml
 }
 
 install() {
@@ -88,24 +93,18 @@ install() {
     if ! file_exist "/etc/fail2ban-monitoring/config.xml"; then
         touch /etc/fail2ban-monitoring/config.xml
         log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban-monitoring/config.xml"
-        echo "<configuration>" >> /etc/fail2ban-monitoring/config.xml
-        read -p "[SETUP] MySQL User: " setup_mysql_user
-        echo "    <username>$setup_mysql_user</username>" >> /etc/fail2ban-monitoring/config.xml
-        mysql_password ${setup_mysql_user}
-        read -p "[SETUP] MySQL Database: " setup_mysql_database
-        echo "    <database>$setup_mysql_database</database>" >> /etc/fail2ban-monitoring/config.xml
-        echo "</configuration>" >> /etc/fail2ban-monitoring/config.xml
+        mysql_setup
     fi
     echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
     echo "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
     echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
     echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
     echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
-
+    database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
     request "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));"
-    request "CREATE DATABASE IF NOT EXISTS $setup_mysql_database;"
+    request "CREATE DATABASE IF NOT EXISTS ${database};"
     request "DROP TABLE IF EXISTS data;"
-    request "USE $setup_mysql_database; CREATE TABLE IF NOT EXISTS data (ip varchar(15) NOT NULL,country varchar(48) NOT NULL,city varchar(48) NOT NULL,zip varchar(12) NOT NULL,lat decimal(10,8) NOT NULL,lng decimal(11,8) NOT NULL,isp varchar(92) NOT NULL,time date NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
+    request "USE ${database}; CREATE TABLE IF NOT EXISTS data (ip varchar(15) NOT NULL,country varchar(48) NOT NULL,city varchar(48) NOT NULL,zip varchar(12) NOT NULL,lat decimal(10,8) NOT NULL,lng decimal(11,8) NOT NULL,isp varchar(92) NOT NULL,time date NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;"
     log "${LIGHTGREEN}OK" "Configuration file successfully created !"
 }
 
