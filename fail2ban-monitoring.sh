@@ -33,7 +33,8 @@ help() {
     echo "${RESET}    ${YELLOW}uninstall                                ${RED}-${RESET} Uninstall components."
     echo "${RESET}    ${YELLOW}reset                                    ${RED}-${RESET} Unban all and reset iptables rules."
     echo "${RESET}    ${YELLOW}configure mysql <user|password|database> ${RED}-${RESET} Change database connection settings."
-    echo "${RESET}    ${YELLOW}import                                   ${RED}-${RESET} Import banned ip's to database."
+    echo "${RESET}    ${YELLOW}import                                   ${RED}-${RESET} Import local fail2ban banned ip's to database."
+    echo "${RESET}    ${YELLOW}file                                     ${RED}-${RESET} Ban with file."
     echo "${RESET}    ${YELLOW}ban <ip>                                 ${RED}-${RESET} Ban user ip adress."
     echo "${RESET}    ${YELLOW}unban <ip>                               ${RED}-${RESET} Unban user ip adress."
     echo "${RESET}    ${YELLOW}debug                                    ${RED}-${RESET} Show any bad configuration probem."
@@ -47,6 +48,16 @@ log() {
 directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi }
 
 file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi }
+
+present_in_fail2ban() {
+    data=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
+    if echo "$data" | grep -q "${1}"; then return 0; else return 1; fi
+}
+
+present_in_db() {
+    data=$(request "SELECT ip FROM data;")
+    if echo "$data" | grep -q "${1}"; then return 0; else return 1; fi
+}
 
 mysql_setup() {
     read -p "[SETUP] MySQL User: " user
@@ -107,8 +118,8 @@ install() {
         mysql_setup
     fi
     echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip> --db" >> /etc/fail2ban/action.d/grafana.conf
+    echo "actionban = bash /usr/bin/fail2ban-monitoring.sh ban <ip>" >> /etc/fail2ban/action.d/grafana.conf
+    echo "actionunban = bash /usr/bin/fail2ban-monitoring.sh unban <ip>" >> /etc/fail2ban/action.d/grafana.conf
     echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
     echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
@@ -171,21 +182,23 @@ import() {
     sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips" > banned.txt
     cat banned.txt | while read ip
     do
-        endpoint=$(curl -s "http://ip-api.com/json/${ip}")
-        data=$(request "SELECT ip FROM data;")
-        case ${data} in
-            *${ip}*) ;;
-            *)  country=$(echo "${endpoint}" | jq -r ".country")
+        if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+            endpoint=$(curl -s "http://ip-api.com/json/${ip}")
+            data=$(request "SELECT ip FROM data;")
+
+            if ! present_in_db "${ip}"; then
+                country=$(echo "${endpoint}" | jq -r ".country")
                 city=$(echo "${endpoint}" | jq -r ".city")
                 zip=$(echo "${endpoint}" | jq -r ".zip")
                 lat=$(echo "${endpoint}" | jq -r ".lat")
                 lng=$(echo "${endpoint}" | jq -r ".lon")
                 isp=$(echo "${endpoint}" | jq -r ".isp")
-                log "${LIGHTGREEN}+" "Added ${YELLOW}${ip}${RESET} to the database !"
                 request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
-                ;;
-        esac
-        sleep 0.5s
+            fi
+
+            log "${LIGHTGREEN}OK" "The address${RED} ${ip} ${RESET}has been banned !"
+            sleep 0.5s
+        fi
     done
     rm -rf banned.txt
 }
@@ -207,62 +220,91 @@ debug() {
 }
 
 ban() {
-    if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
-         for i in 1 2 3 4; do
-            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ]; then
-                log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
-                exit
-            fi
-        done
-    else
-        log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
-        exit
-    fi
-
-    if [ $# -eq 1 ]; then
-        fail2ban-client -q set sshd banip ${1} > /dev/null
-        log "${LIGHTGREEN}OK" "The adress${RED} ${1} ${RESET}has been banned !"
-        exit
-    fi
-
-    if [ $# -eq 2 ] && [ "$2" = "--db" ]; then
+    if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+        f2b_db=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
         endpoint=$(curl -s "http://ip-api.com/json/${1}")
-        data=$(request "SELECT ip FROM `data`;")
-        case ${data} in
-            *${1}*) ;;
-            *)  country=$(echo "${endpoint}" | jq -r ".country")
-                city=$(echo "${endpoint}" | jq -r ".city")
-                zip=$(echo "${endpoint}" | jq -r ".zip")
-                lat=$(echo "${endpoint}" | jq -r ".lat")
-                lng=$(echo "${endpoint}" | jq -r ".lon")
-                isp=$(echo "${endpoint}" | jq -r ".isp")
-                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
-                ;;
-        esac
+
+        if present_in_db "$1" && present_in_fail2ban "$1"; then
+            log "${RED}ERROR" "This address is already banned !"
+            exit
+        fi
+
+        if ! present_in_db "$1"; then
+            country=$(echo "${endpoint}" | jq -r ".country")
+            city=$(echo "${endpoint}" | jq -r ".city")
+            zip=$(echo "${endpoint}" | jq -r ".zip")
+            lat=$(echo "${endpoint}" | jq -r ".lat")
+            lng=$(echo "${endpoint}" | jq -r ".lon")
+            isp=$(echo "${endpoint}" | jq -r ".isp")
+            request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
+        fi
+
+        if ! present_in_fail2ban "$1"; then
+            fail2ban-client set sshd banip ${1} > /dev/null
+        fi
+
+        log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been banned !"
+    else
+        log "${RED}ERROR" "The address${RED} ${1} ${RESET}is not a valid ip address !"
+        exit
     fi
 }
 
 unban() {
-    if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' > /dev/null; then
-         for i in 1 2 3 4; do
-            if [ $(echo "$1" | cut -d. -f$i) -gt 255 ]; then
-                log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
-                exit
-            fi
-        done
+    if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+        f2b_db=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
+        data=$(request "SELECT ip FROM data;")
+
+        if ! present_in_db "$1" && ! present_in_fail2ban "$1"; then
+            log "${RED}ERROR" "This address is already banned !"
+            exit
+        fi
+
+        if present_in_db "$1"; then
+            request "DELETE FROM data WHERE ip='${1}';"
+        fi
+
+        if present_in_fail2ban "$1"; then
+            fail2ban-client set sshd unbanip ${1} > /dev/null
+        fi
+
+        log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been unbanned !"
     else
-        log "${RED}ERROR" "The adress${RED} ${1} ${RESET}is not a valid ip adress !"
+        log "${RED}ERROR" "The address${RED} ${1} ${RESET}is not a valid ip address !"
         exit
     fi
-    if [ $# -eq 1 ]; then
-        fail2ban-client -q set sshd unbanip ${1} > /dev/null
-        log "${LIGHTGREEN}OK" "The adress${RED} ${1} ${RESET}has been unbanned !"
+}
+
+ban_file() {
+    if ! file_exist "$1"; then
+        log "${RED}ERROR" "Failed to import ${LIGHTPURPLE}$1${RESET} file."
         exit
     fi
-    if [ $# -eq 2 ] && [ "$2" = "--db" ]; then
-        request "DELETE FROM data WHERE ip='${1}';"
-        log "${LIGHTGREEN}OK" "The adress${RED} ${1} ${RESET}has been unbanned !"
-    fi
+    cat "$1" | while read ip
+    do
+        if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
+            endpoint=$(curl -s "http://ip-api.com/json/${ip}")
+            data=$(request "SELECT ip FROM data;")
+            if ! echo "$data" | grep -q "$ip"; then
+                if ! echo "$f2b_db" | grep -q "${1}"; then
+                    fail2ban-client set sshd banip ${ip} > /dev/null
+                fi
+                case ${data} in
+                    *${ip}*) ;;
+                    *)  country=$(echo "${endpoint}" | jq -r ".country")
+                        city=$(echo "${endpoint}" | jq -r ".city")
+                        zip=$(echo "${endpoint}" | jq -r ".zip")
+                        lat=$(echo "${endpoint}" | jq -r ".lat")
+                        lng=$(echo "${endpoint}" | jq -r ".lon")
+                        isp=$(echo "${endpoint}" | jq -r ".isp")
+                        log "${LIGHTGREEN}+" "Added${YELLOW} ${ip} ${RESET}to the database !"
+                        request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
+                        ;;
+                esac
+                sleep 1.5s
+            fi
+        fi
+    done
 }
 
 update_db_user() {
@@ -335,6 +377,11 @@ fi
 
 if [ $# -eq 2 ] && [ "$1" = "db_unban" ]; then
     db_unban "$2"
+    exit
+fi
+
+if [ $# -eq 2 ] && [ "$1" = "file" ]; then
+    ban_file "$2"
     exit
 fi
 
