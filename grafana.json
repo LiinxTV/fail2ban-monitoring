@@ -468,10 +468,13 @@
       "type": "table-old"
     }
   ],
-  "refresh": "5s",
+  "refresh": "1m",
   "schemaVersion": 34,
   "style": "dark",
-  "tags": [],
+  "tags": [
+    "fail2ban",
+    "monitoring"
+  ],
   "templating": {
     "list": []
   },
@@ -480,10 +483,8 @@
     "to": "now"
   },
   "timepicker": {
+    "hidden": true,
     "refresh_intervals": [
-      "5s",
-      "10s",
-      "30s",
       "1m",
       "5m",
       "15m",
@@ -496,6 +497,6 @@
   "timezone": "Europe/Paris",
   "title": "Fail2ban Monitoring",
   "uid": "F0EdoLCZk",
-  "version": 2,
+  "version": 6,
   "weekStart": "monday"
 }
