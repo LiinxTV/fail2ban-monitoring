@@ -6,7 +6,7 @@
 - Powerfull and cost less resources.
 - Compatible with most GNU distributions.
 
-![](https://www.alouit-multimedia.com/wp-content/uploads/2012/12/fail2ban-logo.jpg)
+![](https://i.ibb.co/NyyXr86/Screenshot-2.png)
 
 Installation:
 -------------
