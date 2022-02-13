@@ -33,7 +33,8 @@
         "#73BF69",
         "#FADE2A",
         "#FF9830",
-        "#F2495C"
+        "#F2495C",
+        "#C4162A"
       ],
       "decimals": 0,
       "esMetric": "Count",
@@ -136,7 +137,7 @@
           ]
         }
       ],
-      "thresholds": "2,10,30",
+      "thresholds": "10,50,100,250",
       "title": "Attackers filtered by cities",
       "type": "grafana-worldmap-panel",
       "unitPlural": "",
@@ -223,7 +224,7 @@
           ]
         }
       ],
-      "thresholds": "2,25,50,100",
+      "thresholds": "10,100,250,500",
       "title": "Attackers filtered by countries",
       "type": "grafana-worldmap-panel",
       "unitPlural": "",
@@ -307,8 +308,11 @@
       "circleMaxSize": "2",
       "circleMinSize": "1",
       "colors": [
-        "#FF9830",
-        "#F2495C"
+        "#73BF69",
+        "#FADE2A",
+        "#FF780A",
+        "#FF7383",
+        "#C4162A"
       ],
       "decimals": 0,
       "esMetric": "Count",
@@ -380,7 +384,7 @@
           ]
         }
       ],
-      "thresholds": "2",
+      "thresholds": "5,10,25,50",
       "title": "Attackers filtered by locations",
       "type": "grafana-worldmap-panel",
       "unitPlural": "",
@@ -497,6 +501,6 @@
   "timezone": "Europe/Paris",
   "title": "Fail2ban Monitoring",
   "uid": "F0EdoLCZk",
-  "version": 6,
+  "version": 11,
   "weekStart": "monday"
 }
