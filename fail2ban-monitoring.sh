@@ -34,7 +34,7 @@ help() {
     echo "${RESET}    ${YELLOW}reset                                    ${RED}-${RESET} Unban all and reset iptables rules."
     echo "${RESET}    ${YELLOW}configure mysql <user|password|database> ${RED}-${RESET} Change database connection settings."
     echo "${RESET}    ${YELLOW}import                                   ${RED}-${RESET} Import local fail2ban banned ip's to database."
-    echo "${RESET}    ${YELLOW}file                                     ${RED}-${RESET} Ban with file."
+    echo "${RESET}    ${YELLOW}file <file>                              ${RED}-${RESET} Ban with file."
     echo "${RESET}    ${YELLOW}ban <ip>                                 ${RED}-${RESET} Ban user ip adress."
     echo "${RESET}    ${YELLOW}unban <ip>                               ${RED}-${RESET} Unban user ip adress."
     echo "${RESET}    ${YELLOW}debug                                    ${RED}-${RESET} Show any bad configuration probem."
