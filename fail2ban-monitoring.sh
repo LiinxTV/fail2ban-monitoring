@@ -195,6 +195,7 @@ import() {
                 isp=$(echo "${endpoint}" | jq -r ".isp")
                 request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
             fi
+
             log "${LIGHTGREEN}OK" "The address${RED} ${ip} ${RESET}has been banned !"
             sleep 0.5s
         fi
@@ -222,10 +223,12 @@ ban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
         f2b_db=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
         endpoint=$(curl -s "http://ip-api.com/json/${1}")
+
         if present_in_db "$1" && present_in_fail2ban "$1"; then
             log "${RED}ERROR" "This address is already banned !"
             exit
         fi
+
         if ! present_in_db "$1"; then
             country=$(echo "${endpoint}" | jq -r ".country")
             city=$(echo "${endpoint}" | jq -r ".city")
@@ -235,9 +238,11 @@ ban() {
             isp=$(echo "${endpoint}" | jq -r ".isp")
             request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
         fi
+
         if ! present_in_fail2ban "$1"; then
             fail2ban-client set sshd banip ${1} > /dev/null
         fi
+
         log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been banned !"
     else
         log "${RED}ERROR" "The address${RED} ${1} ${RESET}is not a valid ip address !"
@@ -249,16 +254,20 @@ unban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
         f2b_db=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
         data=$(request "SELECT ip FROM data;")
+
         if ! present_in_db "$1" && ! present_in_fail2ban "$1"; then
             log "${RED}ERROR" "This address is already banned !"
             exit
         fi
+
         if present_in_db "$1"; then
             request "DELETE FROM data WHERE ip='${1}';"
         fi
+
         if present_in_fail2ban "$1"; then
             fail2ban-client set sshd unbanip ${1} > /dev/null
         fi
+
         log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been unbanned !"
     else
         log "${RED}ERROR" "The address${RED} ${1} ${RESET}is not a valid ip address !"
@@ -276,23 +285,17 @@ ban_file() {
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
             endpoint=$(curl -s "http://ip-api.com/json/${ip}")
             data=$(request "SELECT ip FROM data;")
-            if ! echo "$data" | grep -q "$ip"; then
-                if ! echo "$f2b_db" | grep -q "${1}"; then
-                    fail2ban-client set sshd banip ${ip} > /dev/null
-                fi
-                case ${data} in
-                    *${ip}*) ;;
-                    *)  country=$(echo "${endpoint}" | jq -r ".country")
-                        city=$(echo "${endpoint}" | jq -r ".city")
-                        zip=$(echo "${endpoint}" | jq -r ".zip")
-                        lat=$(echo "${endpoint}" | jq -r ".lat")
-                        lng=$(echo "${endpoint}" | jq -r ".lon")
-                        isp=$(echo "${endpoint}" | jq -r ".isp")
-                        log "${LIGHTGREEN}+" "Added${YELLOW} ${ip} ${RESET}to the database !"
-                        request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
-                        ;;
-                esac
-                sleep 1.5s
+
+            if ! present_in_db "${ip}"; then
+                country=$(echo "${endpoint}" | jq -r ".country")
+                city=$(echo "${endpoint}" | jq -r ".city")
+                zip=$(echo "${endpoint}" | jq -r ".zip")
+                lat=$(echo "${endpoint}" | jq -r ".lat")
+                lng=$(echo "${endpoint}" | jq -r ".lon")
+                isp=$(echo "${endpoint}" | jq -r ".isp")
+                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
+                log "${LIGHTGREEN}OK" "The address${RED} ${ip} ${RESET}has been banned !"
+                sleep 1.5s    
             fi
         fi
     done
