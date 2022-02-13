@@ -8,6 +8,11 @@
 
 ![](https://i.ibb.co/NyyXr86/Screenshot-2.png)
 
+Requierements:
+-------------
+
+![](https://img.shields.io/badge/Ubuntu->%3D%2021.10-brightgreen) ![](https://img.shields.io/badge/MySQL->%3D%208.0-brightgreen) ![](https://img.shields.io/badge/Grafana->%3D%208.3.6-brightgreen) ![](https://img.shields.io/badge/PHP->%3D%208.0.8-brightgreen) 
+
 Installation:
 -------------
 
