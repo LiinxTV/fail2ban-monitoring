@@ -222,24 +222,23 @@ ban() {
 
         if present_in_db "$1" && present_in_fail2ban "$1"; then
             log "${RED}ERROR" "This address is already banned !"
-            exit
-        fi
+        else
+            if ! present_in_db "$1"; then
+                country=$(echo "${endpoint}" | jq -r ".country")
+                city=$(echo "${endpoint}" | jq -r ".city")
+                zip=$(echo "${endpoint}" | jq -r ".zip")
+                lat=$(echo "${endpoint}" | jq -r ".lat")
+                lng=$(echo "${endpoint}" | jq -r ".lon")
+                isp=$(echo "${endpoint}" | jq -r ".isp")
+                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
+            fi
 
-        if ! present_in_db "$1"; then
-            country=$(echo "${endpoint}" | jq -r ".country")
-            city=$(echo "${endpoint}" | jq -r ".city")
-            zip=$(echo "${endpoint}" | jq -r ".zip")
-            lat=$(echo "${endpoint}" | jq -r ".lat")
-            lng=$(echo "${endpoint}" | jq -r ".lon")
-            isp=$(echo "${endpoint}" | jq -r ".isp")
-            request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
-        fi
+            if ! present_in_fail2ban "$1"; then
+                fail2ban-client set sshd banip ${1} > /dev/null
+            fi
 
-        if ! present_in_fail2ban "$1"; then
-            fail2ban-client set sshd banip ${1} > /dev/null
+            log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been banned !"
         fi
-
-        log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been banned !"
     else
         log "${RED}ERROR" "The address${RED} ${1} ${RESET}is not a valid ip address !"
         exit
@@ -282,6 +281,7 @@ ban_file() {
     do
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
             ban "$ip"
+            ips=$(expr $ips + 1)
             sleep 1.5s
         fi
     done
