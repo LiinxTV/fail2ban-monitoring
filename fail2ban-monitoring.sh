@@ -1,12 +1,21 @@
 #!/bin/bash
 
+#███████╗ █████╗ ██╗██╗     ██████╗ ██████╗  █████╗ ███╗   ██╗    ███╗   ███╗ ██████╗ ███╗   ██╗██╗████████╗ ██████╗ ██████╗ ██╗███╗   ██╗ ██████╗ 
+#██╔════╝██╔══██╗██║██║     ╚════██╗██╔══██╗██╔══██╗████╗  ██║    ████╗ ████║██╔═══██╗████╗  ██║██║╚══██╔══╝██╔═══██╗██╔══██╗██║████╗  ██║██╔════╝ 
+#█████╗  ███████║██║██║      █████╔╝██████╔╝███████║██╔██╗ ██║    ██╔████╔██║██║   ██║██╔██╗ ██║██║   ██║   ██║   ██║██████╔╝██║██╔██╗ ██║██║  ███╗
+#██╔══╝  ██╔══██║██║██║     ██╔═══╝ ██╔══██╗██╔══██║██║╚██╗██║    ██║╚██╔╝██║██║   ██║██║╚██╗██║██║   ██║   ██║   ██║██╔══██╗██║██║╚██╗██║██║   ██║
+#██║     ██║  ██║██║███████╗███████╗██████╔╝██║  ██║██║ ╚████║    ██║ ╚═╝ ██║╚██████╔╝██║ ╚████║██║   ██║   ╚██████╔╝██║  ██║██║██║ ╚████║╚██████╔╝
+#╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝    ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
+
+#SQL Query method
 request() {
-    username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml")
-    password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml")
-    database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
+    username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml") #Get username from "/etc/fail2ban-monitoring/config.xml"
+    password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml") #Get password from "/etc/fail2ban-monitoring/config.xml"
+    database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml") #Get database from "/etc/fail2ban-monitoring/config.xml"
 	MYSQL_PWD=${password} mysql -u${username} --database=${database} -e "$1"
 }
 
+#Some colors for terminal text style
 RESET='\033[0m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,6 +33,7 @@ LIGHTPURPLE='\033[1;35m'
 LIGHTCYAN='\033[1;36m'
 WHITE='\033[1;37m'
 
+#This is the help message, equivalent to a man page
 help() {
     echo "${RESET}Usage: f2bm [options] <value>"
     echo "${RESET}"
@@ -41,37 +51,42 @@ help() {
     echo "${RESET}"
 }
 
+#Function for printing formated message (Need 2 args)
 log() {
     echo "${RESET}[${1}${RESET}] ${2}" ${RESET}
 }
 
-directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi }
+directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi } #Checking if a directory exist.
 
-file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi }
+file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi } #Checking if a file exist.
 
 present_in_fail2ban() {
+    #Check if IP parsed as parameter is stored in local fail2ban database.
     data=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
     if echo "$data" | grep -q "${1}"; then return 0; else return 1; fi
 }
 
 present_in_db() {
+    #Check if IP parsed as parameter is stored in mysql database.
     data=$(request "SELECT ip FROM data;")
     if echo "$data" | grep -q "${1}"; then return 0; else return 1; fi
 }
 
 mysql_setup() {
+    #Define MySQL credentials and store them in a config file (/etc/fail2ban-monitoring/config.xml)
     read -p "[SETUP] MySQL User: " user
     password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${user}: ")
     tries=0
     until MYSQL_PWD=${password} mysql -u${user} -e ";" > /dev/null; do
         password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
         tries=$(expr $tries + 1)
-        if [ "$tries" -eq "3" ]; then
+        if [ "$tries" -eq "3" ]; then #Let 3 login tries.
             log "${RED}ERROR" "Too many authentification failures !"
             tries=$(expr $tries - $tries)
-            mysql_setup
+            mysql_setup #Recursive function
         fi
     done
+    #Write informations to file (/etc/fail2ban-monitoring/config.xml)
     log "${LIGHTGREEN}OK" "Connection successfully established !"
     read -p "[SETUP] MySQL Database: " database
     echo "<configuration>" >> /etc/fail2ban-monitoring/config.xml
@@ -82,46 +97,55 @@ mysql_setup() {
 }
 
 install() {
+    #Check if a config file is already present, if present, that means that an installation process was already completed
     if file_exist "/etc/fail2ban-monitoring/config.xml"; then
         log "${RED}ERROR" "Failed to continue installation, config file is already present !"
         exit
     fi
+    #Update packages and upgrade them before performing the installation.
+    sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
+    #Cancel installation if mysql if not found [depends]
     if [ $(dpkg-query -W -f='${Status}' mysql-server 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
         log "${RED}ERROR" "MySQL not found, please install it !"
         exit
     fi
+    #Install xmlstarlet package if not found [soft depend]
     if [ $(dpkg-query -W -f='${Status}' xmlstarlet 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
         log "${RED}ERROR" "xmlstarlet not installed, Installing... !"
-        sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
         sudo apt -qq install xmlstarlet -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "xmlstarlet package is already installed"
     fi
+    #Install sqlite3 package if not found [soft depend]
     if [ $(dpkg-query -W -f='${Status}' sqlite3 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
         log "${RED}ERROR" "sqlite3 not installed, Installing... !"
-        sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
         sudo apt -qq install sqlite3 -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
     fi
+    #Create folder /etc/fail2ban-monitoring if not exist
     if ! directory_exist "/etc/fail2ban-monitoring"; then
         mkdir /etc/fail2ban-monitoring
         log "${YELLOW}INSTALL" "Created folder: ${LIGHTPURPLE}/etc/fail2ban-monitoring"
     fi
+    #Create file /etc/fail2ban/action.d/grafana.conf if not exist
     if ! file_exist "/etc/fail2ban/action.d/grafana.conf"; then
         touch /etc/fail2ban/action.d/grafana.conf
         log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban/action.d/grafana.conf"
     fi
+    #Create file /etc/fail2ban-monitoring/config.xml if not exist
     if ! file_exist "/etc/fail2ban-monitoring/config.xml"; then
         touch /etc/fail2ban-monitoring/config.xml
         log "${YELLOW}INSTALL" "Created file: ${LIGHTPURPLE}/etc/fail2ban-monitoring/config.xml"
         mysql_setup
     fi
+    #Writing file that bind ban and unban events to f2bm script
     echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
     echo "actionban = bash /usr/bin/fail2ban-monitoring.sh ban <ip>" >> /etc/fail2ban/action.d/grafana.conf
     echo "actionunban = bash /usr/bin/fail2ban-monitoring.sh unban <ip>" >> /etc/fail2ban/action.d/grafana.conf
     echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
     echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
+    #Setup database schema
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
     request "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));"
     request "CREATE DATABASE IF NOT EXISTS ${database};"
@@ -131,7 +155,7 @@ install() {
 }
 
 uninstall() {
-        if file_exist "/etc/fail2ban-monitoring/config.xml"; then
+    if file_exist "/etc/fail2ban-monitoring/config.xml"; then
         read -p "Do you want to delete database data? [Y/n]" choice
         if [ "$choice" = "y" ] || [ "$choice" = "" ]; then
             request "DELETE FROM data;"
@@ -179,18 +203,7 @@ import() {
     cat banned.txt | while read ip
     do
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
-            endpoint=$(curl -s "http://ip-api.com/json/${ip}")
-            data=$(request "SELECT ip FROM data;")
-
-            if ! present_in_db "${ip}"; then
-                country=$(echo "${endpoint}" | jq -r ".country")
-                city=$(echo "${endpoint}" | jq -r ".city")
-                zip=$(echo "${endpoint}" | jq -r ".zip")
-                lat=$(echo "${endpoint}" | jq -r ".lat")
-                lng=$(echo "${endpoint}" | jq -r ".lon")
-                isp=$(echo "${endpoint}" | jq -r ".isp")
-                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${ip}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
-            fi
+            ban "$ip"
 
             log "${LIGHTGREEN}OK" "The address${RED} ${ip} ${RESET}has been banned !"
             sleep 0.5s
@@ -224,13 +237,15 @@ ban() {
             log "${RED}ERROR" "This address is already banned !"
         else
             if ! present_in_db "$1"; then
+                invalid="'"
+                replace=" "
                 country=$(echo "${endpoint}" | jq -r ".country")
                 city=$(echo "${endpoint}" | jq -r ".city")
                 zip=$(echo "${endpoint}" | jq -r ".zip")
                 lat=$(echo "${endpoint}" | jq -r ".lat")
                 lng=$(echo "${endpoint}" | jq -r ".lon")
                 isp=$(echo "${endpoint}" | jq -r ".isp")
-                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','${country}','${city}','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
+                request "INSERT INTO data(ip,country,city,zip,lat,lng,isp,time) VALUES ('${1}','$(echo "${country}" | sed s/\'//g)','$(echo "${city}" | sed s/\'//g)','${zip}',${lat},${lng},'${isp}', '$(date +'%Y-%m-%d')')"
             fi
 
             if ! present_in_fail2ban "$1"; then
@@ -280,9 +295,13 @@ ban_file() {
     cat "$1" | while read ip
     do
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
-            ban "$ip"
-            ips=$(expr $ips + 1)
-            sleep 1.5s
+            if ! present_in_db "${ip}" && ! present_in_fail2ban "${ip}"; then
+                ban "$ip"
+                ips=$(expr $ips + 1)
+                sleep 1.5s
+            else
+                log "${RED}ERROR" "This address is already banned !"
+            fi
         fi
     done
     log "${LIGHTGREEN}DONE" "A total of${RED} ${ips} ${RESET}ip's has been banned !"
