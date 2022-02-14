@@ -123,6 +123,13 @@ install() {
     else
         log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
     fi
+    #Install jq package if not found [soft depend]
+    if [ $(dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+        log "${RED}ERROR" "jq not installed, Installing... !"
+        sudo apt -qq install jq -y >/dev/null 2>&1
+    else
+        log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
+    fi
     #Create folder /etc/fail2ban-monitoring if not exist
     if ! directory_exist "/etc/fail2ban-monitoring"; then
         mkdir /etc/fail2ban-monitoring
@@ -141,8 +148,8 @@ install() {
     fi
     #Writing file that bind ban and unban events to f2bm script
     echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionban = bash /usr/bin/fail2ban-monitoring.sh ban <ip>" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionunban = bash /usr/bin/fail2ban-monitoring.sh unban <ip>" >> /etc/fail2ban/action.d/grafana.conf
+    echo "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip>" >> /etc/fail2ban/action.d/grafana.conf
+    echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip>" >> /etc/fail2ban/action.d/grafana.conf
     echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
     echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
     #Setup database schema
