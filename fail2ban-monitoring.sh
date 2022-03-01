@@ -7,15 +7,15 @@
 #██║     ██║  ██║██║███████╗███████╗██████╔╝██║  ██║██║ ╚████║    ██║ ╚═╝ ██║╚██████╔╝██║ ╚████║██║   ██║   ╚██████╔╝██║  ██║██║██║ ╚████║╚██████╔╝
 #╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚══════╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝    ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝  ╚═══╝ ╚═════╝ 
 
-#SQL Query method
+#SQL Lazy Query
 request() {
-    username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml") #Get username from "/etc/fail2ban-monitoring/config.xml"
-    password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml") #Get password from "/etc/fail2ban-monitoring/config.xml"
-    database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml") #Get database from "/etc/fail2ban-monitoring/config.xml"
+    username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml")
+    password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml")
+    database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
 	MYSQL_PWD="${password}" mysql -u"${username}" --database="${database}" -e "$1"
 }
 
-#Some colors for terminal text style
+#Terminal Color Codes
 RESET='\033[0m'
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -33,7 +33,7 @@ LIGHTPURPLE='\033[1;35m'
 LIGHTCYAN='\033[1;36m'
 WHITE='\033[1;37m'
 
-#This is the help message, equivalent to a man page
+#Help message
 help() {
     echo "${RESET}Usage: f2bm [options] <value>"
     echo "${RESET}"
@@ -51,42 +51,41 @@ help() {
     echo "${RESET}"
 }
 
-#Function for printing formated message (Need 2 args)
+#Logger
 log() {
     echo "${RESET}[${1}${RESET}] ${2}" "${RESET}"
 }
 
 directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi } #Checking if a directory exist.
-
 file_exist() { if [ -e "$1" ]; then return 0; else return 1; fi } #Checking if a file exist.
 
+#Check if IP parsed as parameter is stored in local fail2ban database.
 present_in_fail2ban() {
-    #Check if IP parsed as parameter is stored in local fail2ban database.
     data=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
     if echo "$data" | grep -q "${1}"; then return 0; else return 1; fi
 }
 
+#Check if IP parsed as parameter is stored in mysql database.
 present_in_db() {
-    #Check if IP parsed as parameter is stored in mysql database.
     data=$(request "SELECT ip FROM data;")
     if echo "$data" | grep -q "${1}"; then return 0; else return 1; fi
 }
 
+#Define MySQL credentials and store them in a config file (/etc/fail2ban-monitoring/config.xml)
 mysql_setup() {
-    #Define MySQL credentials and store them in a config file (/etc/fail2ban-monitoring/config.xml)
+    tries=0
     read -p -r "[SETUP] MySQL User: " user
     password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${user}: ")
-    tries=0
     until MYSQL_PWD="${password}" mysql -u"${user}" -e ";" > /dev/null; do
         password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
         tries=$(("$tries" + 1))
-        if [ "$tries" -eq "3" ]; then #Let 3 login tries.
+        if [ "$tries" -eq "3" ]; then
             log "${RED}ERROR" "Too many authentification failures !"
             tries=$(("$tries" - "$tries"))
-            mysql_setup #Recursive function
+            mysql_setup
         fi
     done
-    #Write informations to file (/etc/fail2ban-monitoring/config.xml)
+    #Save Connection
     log "${LIGHTGREEN}OK" "Connection successfully established !"
     read -p -r "[SETUP] MySQL Database: " database
     {
@@ -98,37 +97,37 @@ mysql_setup() {
     } >> /etc/fail2ban-monitoring/config.xml
 }
 
+#Check if a config file is already present, if present, that means that an installation process was already completed
 install() {
-    #Check if a config file is already present, if present, that means that an installation process was already completed
     if file_exist "/etc/fail2ban-monitoring/config.xml"; then
         log "${RED}ERROR" "Failed to continue installation, config file is already present !"
         exit
     fi
     #Update packages and upgrade them before performing the installation.
-    sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
-    #Cancel installation if mysql if not found [depends]
+    apt -qq update && apt upgrade -y >/dev/null 2>&1
+    #Cancel installation if mysql if not found [hard depend]
     if [ "$(dpkg-query -W -f='${Status}' mysql-server 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
-        log "${RED}ERROR" "MySQL not found, please install it !"
+        log "${RED}DEPEND" "MySQL not found, please install it !"
         exit
     fi
     #Install xmlstarlet package if not found [soft depend]
     if [ "$(dpkg-query -W -f='${Status}' xmlstarlet 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "xmlstarlet not installed, Installing... !"
-        sudo apt -qq install xmlstarlet -y >/dev/null 2>&1
+        apt -qq install xmlstarlet -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "xmlstarlet package is already installed"
     fi
     #Install sqlite3 package if not found [soft depend]
     if [ "$(dpkg-query -W -f='${Status}' sqlite3 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "sqlite3 not installed, Installing... !"
-        sudo apt -qq install sqlite3 -y >/dev/null 2>&1
+        apt -qq install sqlite3 -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
     fi
     #Install jq package if not found [soft depend]
     if [ "$(dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "jq not installed, Installing... !"
-        sudo apt -qq install jq -y >/dev/null 2>&1
+        apt -qq install jq -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
     fi
@@ -165,6 +164,7 @@ install() {
     log "${LIGHTGREEN}OK" "Configuration file successfully created !"
 }
 
+#Delete all configuration files (Include MySQL Connection state, irreversible)
 uninstall() {
     if file_exist "/etc/fail2ban-monitoring/config.xml"; then
         read -p -r "Do you want to delete database data? [Y/n]" choice
@@ -180,12 +180,13 @@ uninstall() {
         log "${YELLOW}UNINSTALL" "Deleted folder: ${LIGHTPURPLE}/etc/fail2ban-monitoring/*"
     fi
     if file_exist "/etc/fail2ban/action.d/grafana.conf"; then
-        rm -rf /etc/fail2ban/action.d/grafana.conf
+        rm -f /etc/fail2ban/action.d/grafana.conf
         log "${YELLOW}UNINSTALL" "Deleted file: ${LIGHTPURPLE}/etc/fail2ban/action.d/grafana.conf"
     fi
     log "${LIGHTGREEN}OK" "F2BM components has been removed."
 }
 
+#Delete all MySQL data and unban all in Fail2ban
 reset() {
     read -p -r "Do you want to continue? [Y/n]" choice
     if [ "$choice" = "y" ] || [ "$choice" = "" ]; then
@@ -203,6 +204,7 @@ reset() {
     fi
 }
 
+#Import all actual Fail2ban banned IPs to MySQL database
 import() {
     if ! file_exist "/etc/fail2ban-monitoring/config.xml"; then
         log "${RED}ERROR" "Failed to import data, use ${LIGHTPURPLE}f2bm install${RESET} first."
@@ -223,9 +225,10 @@ import() {
             fi
         fi
     done < banned.txt
-    rm -rf banned.txt
+    rm -f banned.txt
 }
 
+#Print all informations about the installation (if files are missing etc...)
 debug() {
     error=0
     if ! directory_exist "/etc/fail2ban-monitoring"; then
@@ -242,6 +245,7 @@ debug() {
     fi
 }
 
+#Manually ban an IP from fail2ban and add it to MySQL
 ban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
         f2b_db=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
@@ -274,6 +278,7 @@ ban() {
     fi
 }
 
+#Manually remove an IP from fail2ban and remove it to MySQL
 unban() {
     if expr "$1" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
         f2b_db=$(sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips")
@@ -299,12 +304,12 @@ unban() {
     fi
 }
 
+#Ban IPs from file (1 host per line to work)
 ban_file() {
     if ! file_exist "$1"; then
         log "${RED}ERROR" "Failed to import ${LIGHTPURPLE}$1${RESET} file."
         exit
     fi
-
     ips=0
     while IFS= read -r ip; do
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
@@ -319,19 +324,19 @@ ban_file() {
     done < "$1"
     log "${LIGHTGREEN}DONE" "A total of${RED} ${ips} ${RESET}ip's has been banned !"
 }
-
+#Change MySQL user
 update_db_user() {
     read -p -r "Enter new user:" user
     xmlstarlet ed --inplace -u '/configuration/username' -v "${user}" /etc/fail2ban-monitoring/config.xml
     log "${LIGHTGREEN}OK" "The new MySQL user will be:${LIGHTPURPLE} $user ${RESET}"
 }
-
+#Change MySQL password
 update_db_password() {
     read -p -r "Enter new password:" password
     xmlstarlet ed --inplace -u '/configuration/password' -v "${password}" /etc/fail2ban-monitoring/config.xml
     log "${LIGHTGREEN}OK" "The new MySQL password will be:${LIGHTPURPLE} $password ${RESET}"
 }
-
+#Change MySQL database
 update_db_database() {
     read -p -r "Enter new database:" database
     xmlstarlet ed --inplace -u '/configuration/database' -v "${database}" /etc/fail2ban-monitoring/config.xml
