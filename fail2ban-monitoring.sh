@@ -12,7 +12,7 @@ request() {
     username=$(grep -oP '(?<=<username>).*?(?=</username>)' "/etc/fail2ban-monitoring/config.xml") #Get username from "/etc/fail2ban-monitoring/config.xml"
     password=$(grep -oP '(?<=<password>).*?(?=</password>)' "/etc/fail2ban-monitoring/config.xml") #Get password from "/etc/fail2ban-monitoring/config.xml"
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml") #Get database from "/etc/fail2ban-monitoring/config.xml"
-	MYSQL_PWD=${password} mysql -u${username} --database=${database} -e "$1"
+	MYSQL_PWD="${password}" mysql -u"${username}" --database="${database}" -e "$1"
 }
 
 #Some colors for terminal text style
@@ -53,7 +53,7 @@ help() {
 
 #Function for printing formated message (Need 2 args)
 log() {
-    echo "${RESET}[${1}${RESET}] ${2}" ${RESET}
+    echo "${RESET}[${1}${RESET}] ${2}" "${RESET}"
 }
 
 directory_exist() { if [ -d "$1" ]; then return 0 ; else return 1; fi } #Checking if a directory exist.
@@ -74,26 +74,28 @@ present_in_db() {
 
 mysql_setup() {
     #Define MySQL credentials and store them in a config file (/etc/fail2ban-monitoring/config.xml)
-    read -p "[SETUP] MySQL User: " user
+    read -p -r "[SETUP] MySQL User: " user
     password=$(/lib/cryptsetup/askpass "[MySQL] Password for ${user}: ")
     tries=0
-    until MYSQL_PWD=${password} mysql -u${user} -e ";" > /dev/null; do
+    until MYSQL_PWD="${password}" mysql -u"${user}" -e ";" > /dev/null; do
         password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
-        tries=$(expr $tries + 1)
+        tries=${expr $tries + 1}
         if [ "$tries" -eq "3" ]; then #Let 3 login tries.
             log "${RED}ERROR" "Too many authentification failures !"
-            tries=$(expr $tries - $tries)
+            tries=${expr $tries - $tries}
             mysql_setup #Recursive function
         fi
     done
     #Write informations to file (/etc/fail2ban-monitoring/config.xml)
     log "${LIGHTGREEN}OK" "Connection successfully established !"
-    read -p "[SETUP] MySQL Database: " database
-    echo "<configuration>" >> /etc/fail2ban-monitoring/config.xml
-    echo "    <username>${user}</username>" >> /etc/fail2ban-monitoring/config.xml
-    echo "    <password>${password}</password>" >> /etc/fail2ban-monitoring/config.xml
-    echo "    <database>${database}</database>" >> /etc/fail2ban-monitoring/config.xml
-    echo "</configuration>" >> /etc/fail2ban-monitoring/config.xml
+    read -p -r "[SETUP] MySQL Database: " database
+    {
+        echo "<configuration>"
+        "    <username>${user}</username>"
+        "    <password>${password}</password>"
+        "    <database>${database}</database>"
+        "</configuration>"
+    } >> /etc/fail2ban-monitoring/config.xml
 }
 
 install() {
@@ -105,26 +107,26 @@ install() {
     #Update packages and upgrade them before performing the installation.
     sudo apt -qq update && sudo apt upgrade -y >/dev/null 2>&1
     #Cancel installation if mysql if not found [depends]
-    if [ $(dpkg-query -W -f='${Status}' mysql-server 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+    if [ "$(dpkg-query -W -f='${Status}' mysql-server 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "MySQL not found, please install it !"
         exit
     fi
     #Install xmlstarlet package if not found [soft depend]
-    if [ $(dpkg-query -W -f='${Status}' xmlstarlet 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+    if [ "$(dpkg-query -W -f='${Status}' xmlstarlet 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "xmlstarlet not installed, Installing... !"
         sudo apt -qq install xmlstarlet -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "xmlstarlet package is already installed"
     fi
     #Install sqlite3 package if not found [soft depend]
-    if [ $(dpkg-query -W -f='${Status}' sqlite3 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+    if [ "$(dpkg-query -W -f='${Status}' sqlite3 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "sqlite3 not installed, Installing... !"
         sudo apt -qq install sqlite3 -y >/dev/null 2>&1
     else
         log "${LIGHTGREEN}OK" "sqlite3 package is already installed"
     fi
     #Install jq package if not found [soft depend]
-    if [ $(dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -c "ok installed") -eq 0 ]; then
+    if [ "$(dpkg-query -W -f='${Status}' jq 2>/dev/null | grep -c "ok installed")" -eq 0 ]; then
         log "${RED}ERROR" "jq not installed, Installing... !"
         sudo apt -qq install jq -y >/dev/null 2>&1
     else
@@ -147,11 +149,13 @@ install() {
         mysql_setup
     fi
     #Writing file that bind ban and unban events to f2bm script
-    echo "[Definition]" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip>" >> /etc/fail2ban/action.d/grafana.conf
-    echo "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip>" >> /etc/fail2ban/action.d/grafana.conf
-    echo "[Init]" >> /etc/fail2ban/action.d/grafana.conf
-    echo "name = default" >> /etc/fail2ban/action.d/grafana.conf
+    {
+        echo "[Definition]"
+        "actionban = sh /usr/bin/fail2ban-monitoring.sh ban <ip>"
+        "actionunban = sh /usr/bin/fail2ban-monitoring.sh unban <ip>"
+        "[Init]"
+        "name = default"
+    } >> /etc/fail2ban/action.d/grafana.conf
     #Setup database schema
     database=$(grep -oP '(?<=<database>).*?(?=</database>)' "/etc/fail2ban-monitoring/config.xml")
     request "SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));"
@@ -163,7 +167,7 @@ install() {
 
 uninstall() {
     if file_exist "/etc/fail2ban-monitoring/config.xml"; then
-        read -p "Do you want to delete database data? [Y/n]" choice
+        read -p -r "Do you want to delete database data? [Y/n]" choice
         if [ "$choice" = "y" ] || [ "$choice" = "" ]; then
             request "DELETE FROM data;"
             log "${LIGHTGREEN}OK" "MySQL data entries has been cleared."
@@ -183,12 +187,13 @@ uninstall() {
 }
 
 reset() {
-    read -p "Do you want to continue? [Y/n]" choice
+    read -p -r "Do you want to continue? [Y/n]" choice
     if [ "$choice" = "y" ] || [ "$choice" = "" ]; then
-        time=$(fail2ban-client get sshd bantime)
-        fail2ban-client set sshd bantime 1 > /dev/null
+        time=$(fail2ban-client get ssh bantime)
+        fail2ban-client set ssh bantime 1 > /dev/null
         sleep 5s
-        fail2ban-client set sshd bantime "${time}" > /dev/null
+        fail2ban-client set ssh bantime "${time}" > /dev/null
+        fail2ban-client unban --all
         if file_exist "/etc/fail2ban-monitoring/config.xml"; then
             request "DELETE FROM data;"
         fi
@@ -207,15 +212,17 @@ import() {
         touch banned.txt
     fi
     sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "select distinct ip from bips" > banned.txt
-    cat banned.txt | while read ip
-    do
+    while IFS= read -r ip; do
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
-            ban "$ip"
-
-            log "${LIGHTGREEN}OK" "The address${RED} ${ip} ${RESET}has been banned !"
-            sleep 0.5s
+            if ! present_in_db "${ip}" && ! present_in_fail2ban "${ip}"; then
+                ban "$ip"
+                ips=${expr "$ips" + 1}
+                sleep 1.5s
+            else
+                log "${RED}ERROR" "This address is already banned !"
+            fi
         fi
-    done
+    done < banned.txt
     rm -rf banned.txt
 }
 
@@ -256,7 +263,7 @@ ban() {
             fi
 
             if ! present_in_fail2ban "$1"; then
-                fail2ban-client set sshd banip ${1} > /dev/null
+                fail2ban-client set ssh banip "${1}" > /dev/null
             fi
 
             log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been banned !"
@@ -273,7 +280,7 @@ unban() {
         data=$(request "SELECT ip FROM data;")
 
         if ! present_in_db "$1" && ! present_in_fail2ban "$1"; then
-            log "${RED}ERROR" "This address is already banned !"
+            log "${RED}ERROR" "This address is not banned !"
             exit
         fi
 
@@ -282,7 +289,7 @@ unban() {
         fi
 
         if present_in_fail2ban "$1"; then
-            fail2ban-client set sshd unbanip ${1} > /dev/null
+            fail2ban-client unban "${1}" > /dev/null
         fi
 
         log "${LIGHTGREEN}OK" "The address${RED} ${1} ${RESET}has been unbanned !"
@@ -299,40 +306,39 @@ ban_file() {
     fi
 
     ips=0
-    cat "$1" | while read ip
-    do
+    while IFS= read -r ip; do
         if expr "$ip" : '[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$' >/dev/null; then
             if ! present_in_db "${ip}" && ! present_in_fail2ban "${ip}"; then
                 ban "$ip"
-                ips=$(expr $ips + 1)
+                ips=${expr $ips + 1}
                 sleep 1.5s
             else
                 log "${RED}ERROR" "This address is already banned !"
             fi
         fi
-    done
+    done < "$1"
     log "${LIGHTGREEN}DONE" "A total of${RED} ${ips} ${RESET}ip's has been banned !"
 }
 
 update_db_user() {
-    read -p "Enter new user:" user
+    read -p -r "Enter new user:" user
     xmlstarlet ed --inplace -u '/configuration/username' -v "${user}" /etc/fail2ban-monitoring/config.xml
     log "${LIGHTGREEN}OK" "The new MySQL user will be:${LIGHTPURPLE} $user ${RESET}"
 }
 
 update_db_password() {
-    read -p "Enter new password:" password
+    read -p -r "Enter new password:" password
     xmlstarlet ed --inplace -u '/configuration/password' -v "${password}" /etc/fail2ban-monitoring/config.xml
     log "${LIGHTGREEN}OK" "The new MySQL password will be:${LIGHTPURPLE} $password ${RESET}"
 }
 
 update_db_database() {
-    read -p "Enter new database:" database
+    read -p -r "Enter new database:" database
     xmlstarlet ed --inplace -u '/configuration/database' -v "${database}" /etc/fail2ban-monitoring/config.xml
     log "${LIGHTGREEN}OK" "The new MySQL user will be:${LIGHTPURPLE} $database ${RESET}"
 }
 
-if [ $# -eq 0 ] ; then
+if [ "$#" -eq 0 ] ; then
     log "${RED}ERROR" "Invalid syntax, please use: ${LIGHTPURPLE}f2bm --help${RESET}"
     exit
 fi
@@ -342,76 +348,76 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     exit
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "install" ]; then
+if [ "$#" -eq 1 ] && [ "$1" = "install" ]; then
     install
     exit
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "uninstall" ]; then
+if [ "$#" -eq 1 ] && [ "$1" = "uninstall" ]; then
     uninstall
     exit
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "reset" ]; then
+if [ "$#" -eq 1 ] && [ "$1" = "reset" ]; then
     reset
     exit
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "import" ]; then
+if [ "$#" -eq 1 ] && [ "$1" = "import" ]; then
     import
     exit
 fi
 
-if [ $# -eq 1 ] && [ "$1" = "debug" ]; then
+if [ "$#" -eq 1 ] && [ "$1" = "debug" ]; then
     debug
     exit
 fi
 
-if [ $# -eq 2 ] && [ "$1" = "ban" ]; then
+if [ "$#" -eq 2 ] && [ "$1" = "ban" ]; then
     ban "$2"
     exit
 fi
 
-if [ $# -eq 2 ] && [ "$1" = "unban" ]; then
+if [ "$#" -eq 2 ] && [ "$1" = "unban" ]; then
     unban "$2"
     exit
 fi
 
-if [ $# -eq 2 ] && [ "$1" = "db_ban" ]; then
+if [ "$#" -eq 2 ] && [ "$1" = "db_ban" ]; then
     db_ban "$2"
     exit
 fi
 
-if [ $# -eq 2 ] && [ "$1" = "db_unban" ]; then
+if [ "$#" -eq 2 ] && [ "$1" = "db_unban" ]; then
     db_unban "$2"
     exit
 fi
 
-if [ $# -eq 2 ] && [ "$1" = "file" ]; then
+if [ "$#" -eq 2 ] && [ "$1" = "file" ]; then
     ban_file "$2"
     exit
 fi
 
-if [ $# -eq 3 ] && [ "$1" = "ban" ] && [ "$3" = "--db" ]; then
+if [ "$#" -eq 3 ] && [ "$1" = "ban" ] && [ "$3" = "--db" ]; then
     ban "$2" "$3"
     exit
 fi
 
-if [ $# -eq 3 ] && [ "$1" = "unban" ] && [ "$3" = "--db" ]; then
+if [ "$#" -eq 3 ] && [ "$1" = "unban" ] && [ "$3" = "--db" ]; then
     unban "$2" "$3"
     exit
 fi
 
-if [ $# -eq 3 ] && [ "$1" = "configure" ] && [ "$2" = "mysql" ] && ([ "$3" = "user" ] || [ "$3" = "password" ] ||[ "$3" = "database" ]); then
+if [ "$#" -eq 3 ] && [ "$1" = "configure" ] && [ "$2" = "mysql" ] && ([ "$3" = "user" ] || [ "$3" = "password" ] ||[ "$3" = "database" ]); then
     if [ "$3" = "user" ]; then
         update_db_user
         exit
     fi
-    if ([ "$3" = "password" ] || [ "$3" = "pass" ]); then
+    if [ "$3" = "password" ] || [ "$3" = "pass" ]; then
         update_db_password
         exit
     fi
-    if ([ "$3" = "database" ] || [ "$3" = "db" ]); then
+    if [ "$3" = "database" ] || [ "$3" = "db" ]; then
         update_db_database
         exit
     fi
