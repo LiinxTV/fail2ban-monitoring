@@ -27,211 +27,6 @@
   "liveNow": false,
   "panels": [
     {
-      "circleMaxSize": "30",
-      "circleMinSize": "1",
-      "colors": [
-        "#73BF69",
-        "#FADE2A",
-        "#FF9830",
-        "#F2495C",
-        "#C4162A"
-      ],
-      "decimals": 0,
-      "esMetric": "Count",
-      "gridPos": {
-        "h": 13,
-        "w": 10,
-        "x": 0,
-        "y": 0
-      },
-      "hideEmpty": false,
-      "hideZero": false,
-      "id": 2,
-      "initialZoom": 1,
-      "locationData": "table",
-      "mapCenter": "(0°, 0°)",
-      "mapCenterLatitude": 0,
-      "mapCenterLongitude": 0,
-      "maxDataPoints": 1,
-      "mouseWheelZoom": true,
-      "showLegend": true,
-      "stickyLabels": false,
-      "tableQueryOptions": {
-        "geohashField": "geohash",
-        "labelField": "city",
-        "latitudeField": "lat",
-        "longitudeField": "lng",
-        "metricField": "cities",
-        "queryType": "coordinates"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "mysql",
-            "uid": "DAY7qFa7k"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "city",
-          "rawQuery": true,
-          "rawSql": "SELECT\n time AS \"time\",\n  lat,\n  lng,\n  city,\n  count(city) as \"cities\",\n  ip as \"metric\"\nFROM grafana.data\nWHERE\n  $__timeFilter(time)\ngroup by city",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "lat"
-                ],
-                "type": "column"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "lng"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "ips",
-          "timeColumn": "time",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        },
-        {
-          "datasource": {
-            "type": "mysql",
-            "uid": "DAY7qFa7k"
-          },
-          "format": "time_series",
-          "group": [],
-          "hide": false,
-          "metricColumn": "none",
-          "rawQuery": true,
-          "rawSql": "SELECT\n time AS \"time\",\n  city,\n  count(city) as \"metrica\"\n  \nFROM grafana.data \ngroup by city",
-          "refId": "B",
-          "select": [
-            [
-              {
-                "params": [
-                  "value"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "timeColumn": "time",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "thresholds": "10,50,100,250",
-      "title": "Attackers filtered by cities",
-      "type": "grafana-worldmap-panel",
-      "unitPlural": "",
-      "unitSingle": "",
-      "valueName": "total"
-    },
-    {
-      "circleMaxSize": "30",
-      "circleMinSize": "2",
-      "colors": [
-        "#37872D",
-        "#FFEE52",
-        "#FA6400",
-        "#FF7383",
-        "#C4162A"
-      ],
-      "decimals": 0,
-      "esMetric": "Count",
-      "gridPos": {
-        "h": 13,
-        "w": 11,
-        "x": 10,
-        "y": 0
-      },
-      "hideEmpty": false,
-      "hideZero": false,
-      "id": 3,
-      "initialZoom": 1,
-      "locationData": "table",
-      "mapCenter": "(0°, 0°)",
-      "mapCenterLatitude": 0,
-      "mapCenterLongitude": 0,
-      "maxDataPoints": 1,
-      "mouseWheelZoom": true,
-      "showLegend": true,
-      "stickyLabels": false,
-      "tableQueryOptions": {
-        "geohashField": "geohash",
-        "labelField": "country",
-        "latitudeField": "lat",
-        "longitudeField": "lng",
-        "metricField": "countries",
-        "queryType": "coordinates"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "mysql",
-            "uid": "DAY7qFa7k"
-          },
-          "format": "table",
-          "group": [],
-          "metricColumn": "city",
-          "rawQuery": true,
-          "rawSql": "SELECT\n time AS \"time\",\n  avg(lat) as \"lat\",\n  avg(lng) as \"lng\",\n  country,\n  count(country) as \"countries\",\n  ip as \"metric\"\nFROM grafana.data\nWHERE\n  $__timeFilter(time)\ngroup by country",
-          "refId": "A",
-          "select": [
-            [
-              {
-                "params": [
-                  "lat"
-                ],
-                "type": "column"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "lng"
-                ],
-                "type": "column"
-              }
-            ]
-          ],
-          "table": "ips",
-          "timeColumn": "time",
-          "timeColumnType": "timestamp",
-          "where": [
-            {
-              "name": "$__timeFilter",
-              "params": [],
-              "type": "macro"
-            }
-          ]
-        }
-      ],
-      "thresholds": "10,100,250,500",
-      "title": "Attackers filtered by countries",
-      "type": "grafana-worldmap-panel",
-      "unitPlural": "",
-      "unitSingle": "",
-      "valueName": "total"
-    },
-    {
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -249,8 +44,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 3,
-        "x": 21,
+        "w": 24,
+        "x": 0,
         "y": 0
       },
       "id": 8,
@@ -268,7 +63,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.6",
+      "pluginVersion": "8.4.2",
       "targets": [
         {
           "datasource": {
@@ -305,43 +100,88 @@
       "type": "stat"
     },
     {
-      "circleMaxSize": "2",
-      "circleMinSize": "1",
-      "colors": [
-        "#73BF69",
-        "#FADE2A",
-        "#FF780A",
-        "#FF7383",
-        "#C4162A"
-      ],
-      "decimals": 0,
-      "esMetric": "Count",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 12,
-        "w": 10,
+        "h": 24,
+        "w": 12,
         "x": 0,
-        "y": 13
+        "y": 3
       },
-      "hideEmpty": false,
-      "hideZero": false,
-      "id": 4,
-      "initialZoom": 1,
-      "locationData": "table",
-      "mapCenter": "(0°, 0°)",
-      "mapCenterLatitude": 0,
-      "mapCenterLongitude": 0,
-      "maxDataPoints": 1,
-      "mouseWheelZoom": true,
-      "showLegend": true,
-      "stickyLabels": false,
-      "tableQueryOptions": {
-        "geohashField": "geohash",
-        "labelField": "city",
-        "latitudeField": "lat",
-        "longitudeField": "lng",
-        "metricField": "metric",
-        "queryType": "coordinates"
+      "id": 10,
+      "options": {
+        "basemap": {
+          "config": {
+            "server": "streets"
+          },
+          "name": "Layer 0",
+          "type": "esri-xyz"
+        },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "config": {
+              "blur": 8,
+              "radius": 5,
+              "weight": {
+                "field": "Captured",
+                "fixed": 1,
+                "max": 1,
+                "min": 0
+              }
+            },
+            "location": {
+              "latitude": "Latitude",
+              "longitude": "Longitude",
+              "mode": "coords"
+            },
+            "name": "Layer 1",
+            "tooltip": true,
+            "type": "heatmap"
+          }
+        ],
+        "view": {
+          "id": "coords",
+          "lat": 40.113277,
+          "lon": 0.960763,
+          "zoom": 2.2
+        }
       },
+      "pluginVersion": "8.4.2",
       "targets": [
         {
           "datasource": {
@@ -350,31 +190,21 @@
           },
           "format": "table",
           "group": [],
-          "metricColumn": "city",
+          "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n time AS \"time\",\n  lat,\n  lng,\n  city,\n  count(city) as \"metric\"\nFROM grafana.data\nWHERE\n  $__timeFilter(time)\ngroup by city",
+          "rawSql": "SELECT\n time AS \"Captured\",\n  avg(lat) as \"Latitude\",\n  avg(lng) as \"Longitude\",\n  country,\n  count(country) as \"Nombre\",\n  ip as \"IP\"\nFROM grafana.data\nWHERE\n  $__timeFilter(time)\ngroup by country",
           "refId": "A",
           "select": [
             [
               {
                 "params": [
-                  "lat"
-                ],
-                "type": "column"
-              }
-            ],
-            [
-              {
-                "params": [
-                  "lng"
+                  "value"
                 ],
                 "type": "column"
               }
             ]
           ],
-          "table": "data",
           "timeColumn": "time",
-          "timeColumnType": "timestamp",
           "where": [
             {
               "name": "$__timeFilter",
@@ -384,27 +214,138 @@
           ]
         }
       ],
-      "thresholds": "5,10,25,50",
-      "title": "Attackers filtered by locations",
-      "type": "grafana-worldmap-panel",
-      "unitPlural": "",
-      "unitSingle": "",
-      "valueName": "total"
+      "title": "Attackers filtered by countries",
+      "type": "geomap"
+    },
+    {
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 24,
+        "w": 12,
+        "x": 12,
+        "y": 3
+      },
+      "id": 13,
+      "options": {
+        "basemap": {
+          "config": {
+            "server": "streets"
+          },
+          "name": "Layer 0",
+          "type": "esri-xyz"
+        },
+        "controls": {
+          "mouseWheelZoom": true,
+          "showAttribution": true,
+          "showDebug": false,
+          "showScale": false,
+          "showZoom": true
+        },
+        "layers": [
+          {
+            "config": {
+              "blur": 8,
+              "radius": 5,
+              "weight": {
+                "field": "Captured",
+                "fixed": 1,
+                "max": 1,
+                "min": 0
+              }
+            },
+            "location": {
+              "mode": "coords"
+            },
+            "name": "Layer 1",
+            "tooltip": true,
+            "type": "heatmap"
+          }
+        ],
+        "view": {
+          "id": "coords",
+          "lat": 40.113277,
+          "lon": 0.960763,
+          "zoom": 2.2
+        }
+      },
+      "pluginVersion": "8.4.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "DAY7qFa7k"
+          },
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n time AS \"Captured\",\n  lat,\n  lng,\n  city,\n  count(city) as \"Nombre\",\n  ip as \"IP\"\nFROM grafana.data\nWHERE\n  $__timeFilter(time)\ngroup by city",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "title": "Attackers filtered bycities",
+      "type": "geomap"
     },
     {
       "columns": [],
       "fontSize": "100%",
       "gridPos": {
-        "h": 12,
-        "w": 11,
-        "x": 10,
-        "y": 13
+        "h": 96,
+        "w": 24,
+        "x": 0,
+        "y": 27
       },
       "id": 6,
       "showHeader": true,
       "sort": {
-        "col": 2,
-        "desc": true
+        "desc": false
       },
       "styles": [
         {
@@ -473,7 +414,7 @@
     }
   ],
   "refresh": "1m",
-  "schemaVersion": 34,
+  "schemaVersion": 35,
   "style": "dark",
   "tags": [
     "fail2ban",
@@ -483,7 +424,7 @@
     "list": []
   },
   "time": {
-    "from": "now-24h",
+    "from": "now-30d",
     "to": "now"
   },
   "timepicker": {
@@ -501,6 +442,6 @@
   "timezone": "Europe/Paris",
   "title": "Fail2ban Monitoring",
   "uid": "F0EdoLCZk",
-  "version": 11,
+  "version": 40,
   "weekStart": "monday"
 }
