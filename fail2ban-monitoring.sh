@@ -79,10 +79,10 @@ mysql_setup() {
     tries=0
     until MYSQL_PWD="${password}" mysql -u"${user}" -e ";" > /dev/null; do
         password=$(/lib/cryptsetup/askpass "Can't connect, please retry: ")
-        tries=${expr $tries + 1}
+        tries=$(("$tries" + 1))
         if [ "$tries" -eq "3" ]; then #Let 3 login tries.
             log "${RED}ERROR" "Too many authentification failures !"
-            tries=${expr $tries - $tries}
+            tries=$(("$tries" - "$tries"))
             mysql_setup #Recursive function
         fi
     done
