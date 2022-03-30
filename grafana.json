@@ -22,7 +22,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 5,
+  "id": 1,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -63,12 +63,12 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.4.2",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "datasource": {
             "type": "mysql",
-            "uid": "DAY7qFa7k"
+            "uid": "BfthF2snk"
           },
           "format": "time_series",
           "group": [],
@@ -131,7 +131,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 24,
+        "h": 20,
         "w": 12,
         "x": 0,
         "y": 3
@@ -155,23 +155,39 @@
         "layers": [
           {
             "config": {
-              "blur": 8,
-              "radius": 5,
-              "weight": {
-                "field": "Captured",
-                "fixed": 1,
-                "max": 1,
-                "min": 0
+              "showLegend": true,
+              "style": {
+                "color": {
+                  "fixed": "#ff0000"
+                },
+                "opacity": 0.9,
+                "rotation": {
+                  "fixed": 0,
+                  "max": 360,
+                  "min": -360,
+                  "mode": "mod"
+                },
+                "size": {
+                  "fixed": 8,
+                  "max": 15,
+                  "min": 2
+                },
+                "symbol": {
+                  "fixed": "img/icons/marker/square.svg",
+                  "mode": "fixed"
+                },
+                "textConfig": {
+                  "fontSize": 12,
+                  "offsetX": 0,
+                  "offsetY": 0,
+                  "textAlign": "center",
+                  "textBaseline": "middle"
+                }
               }
-            },
-            "location": {
-              "latitude": "Latitude",
-              "longitude": "Longitude",
-              "mode": "coords"
             },
             "name": "Layer 1",
             "tooltip": true,
-            "type": "heatmap"
+            "type": "markers"
           }
         ],
         "view": {
@@ -181,12 +197,12 @@
           "zoom": 2.2
         }
       },
-      "pluginVersion": "8.4.2",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "datasource": {
             "type": "mysql",
-            "uid": "DAY7qFa7k"
+            "uid": "BfthF2snk"
           },
           "format": "table",
           "group": [],
@@ -249,7 +265,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 24,
+        "h": 20,
         "w": 12,
         "x": 12,
         "y": 3
@@ -297,12 +313,12 @@
           "zoom": 2.2
         }
       },
-      "pluginVersion": "8.4.2",
+      "pluginVersion": "8.4.4",
       "targets": [
         {
           "datasource": {
             "type": "mysql",
-            "uid": "DAY7qFa7k"
+            "uid": "BfthF2snk"
           },
           "format": "table",
           "group": [],
@@ -330,7 +346,7 @@
           ]
         }
       ],
-      "title": "Attackers filtered bycities",
+      "title": "Attackers filtered by cities",
       "type": "geomap"
     },
     {
@@ -340,7 +356,7 @@
         "h": 96,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 23
       },
       "id": 6,
       "showHeader": true,
@@ -380,7 +396,7 @@
         {
           "datasource": {
             "type": "mysql",
-            "uid": "DAY7qFa7k"
+            "uid": "BfthF2snk"
           },
           "format": "table",
           "group": [],
@@ -413,7 +429,7 @@
       "type": "table-old"
     }
   ],
-  "refresh": "1m",
+  "refresh": "",
   "schemaVersion": 35,
   "style": "dark",
   "tags": [
@@ -424,8 +440,8 @@
     "list": []
   },
   "time": {
-    "from": "now-30d",
-    "to": "now"
+    "from": "now/y",
+    "to": "now/y"
   },
   "timepicker": {
     "hidden": true,
@@ -442,6 +458,6 @@
   "timezone": "Europe/Paris",
   "title": "Fail2ban Monitoring",
   "uid": "F0EdoLCZk",
-  "version": 40,
+  "version": 10,
   "weekStart": "monday"
 }
